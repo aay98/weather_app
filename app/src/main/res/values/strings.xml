@@ -1,4 +1,11 @@
 <resources>
     <string name="app_name">The Weather App</string>
     <string name="unsuccesMes">may Be here you get temperature in Orenburg</string>
+    <string name="get_weather_by_latitude">Change city</string>
+    <string name="get_weather_by_town_name">Get weather by town name</string>
+    <string name="error_city">Error in name of city, try again</string>
+    <string name="is_it_rainy_today">Is it rainy today?</string>
+    <string name="my_location">My location</string>
+    <string name="enter_city">Enter city</string>
+
 </resources>
