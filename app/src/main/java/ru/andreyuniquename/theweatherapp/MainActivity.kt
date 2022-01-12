@@ -22,6 +22,7 @@ import ru.andreyuniquename.theweatherapp.retrofit.WeatherService
 import android.widget.AdapterView
 import androidx.recyclerview.widget.LinearLayoutManager
 import ru.andreyuniquename.theweatherapp.databinding.ActivityMainBinding
+// TODO RecyclerView.Adapter не должен находиться в слое Domain. Domain - это бизнес-логика. RecyclerView - это UI.
 import ru.andreyuniquename.theweatherapp.domain.CustomRecyclerAdapter
 import ru.andreyuniquename.theweatherapp.retrofit.onecall.OneCallResponse
 import java.util.Calendar.getInstance
@@ -33,8 +34,8 @@ import java.util.Calendar.getInstance
     -широту и долготу узнавать по getDataByTown
  */
 class MainActivity : AppCompatActivity() {
-
-    private lateinit var binding: ActivityMainBinding
+    // TODO необходимо сделать форматирование кода Ctrl + Alt + L
+    private lateinit var binding: ActivityMainBinding // TODO нужно занулять binding в конце ЖЦ твоего активити, чтобы избежать утечку памяти
     private lateinit var fusedLocationClient: FusedLocationProviderClient
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -43,6 +44,7 @@ class MainActivity : AppCompatActivity() {
         val view = binding.root
         setContentView(view)
 
+        // TODO проверка на null не нужна
         binding.citySpinner?.onItemSelectedListener = object : AdapterView.OnItemSelectedListener{
             override fun onNothingSelected(parent: AdapterView<*>?) {
                 getLastKnownLocation()
@@ -50,7 +52,7 @@ class MainActivity : AppCompatActivity() {
 
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 when (binding.citySpinner.selectedItem) {
-                    "Another" -> binding.inputLayout.visibility = View.VISIBLE
+                    "Another" -> binding.inputLayout.visibility = View.VISIBLE // TODO вынеси константу Another в Companion object
                     else -> {
                         cityName = binding.citySpinner.selectedItem.toString()
                         getDataByTown()
@@ -68,7 +70,8 @@ class MainActivity : AppCompatActivity() {
             else binding.tv1.text = getString(R.string.error_city)
         }
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-        binding.myLocationImage.setOnClickListener(){getLastKnownLocation()}
+        binding.myLocationImage.setOnClickListener(){getLastKnownLocation()} // TODO если быстро кликать по этой кнопке, будет уходить куча одинаковых запросов. Подумай, что с этим можно сделать
+        // TODO ты уже задал LayoutManager в вёрстке, соответственно в коде его не нужно уже задавать
         binding.recyclerViewWeek.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
         binding.recyclerViewDay.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
     }
@@ -93,6 +96,7 @@ class MainActivity : AppCompatActivity() {
         }
         fusedLocationClient.lastLocation
             .addOnSuccessListener { location->
+                // TODO вынести логику обработки из Activity в ViewModel (гугли MVVM), ViewModel саму создавать через ViewModelProvider.Factory
                 if (location != null) {
                     lat =  location.latitude.toString()
                     lon = location.longitude.toString()
@@ -100,7 +104,7 @@ class MainActivity : AppCompatActivity() {
 
                 }
 
-            }
+            } // TODO нужна обработка ошибок
 
     }
     private fun getDataByLat() {
@@ -112,9 +116,12 @@ class MainActivity : AppCompatActivity() {
         val call = service.getCurrentWeatherData(lat, lon, AppId)
         call.enqueue(object : Callback<WeatherResponse> {
             override fun onResponse(call: Call<WeatherResponse>, response: Response<WeatherResponse>) {
-                if (response.code() == 200) {
+                if (response.code() == 200) { // TODO вынести 200 в константу с осмысленным названием
+                    // TODO нужна безопасная проверка на null, поскольку даже ответ 200 не гарантирует, что сервер вернет корректные данные
                     val weatherResponse = response.body()!!
+                    // TODO нужна проверка на null
                     cityName = weatherResponse.name!!
+                    // TODO нужна проверка на null и размер массива
                     binding.tv1.text = nowStringBuilder(weatherResponse.main!!.temp.toDouble(),weatherResponse.weather[0].description)
                     getToDayWeather()
                 }
@@ -125,6 +132,7 @@ class MainActivity : AppCompatActivity() {
         })
     }
     private fun getDataByTown() {
+        // TODO вынести создание клиента в отдельный класс
         val retrofit = Retrofit.Builder()
             .baseUrl(BaseUrl)
             .addConverterFactory(GsonConverterFactory.create())
@@ -134,11 +142,15 @@ class MainActivity : AppCompatActivity() {
         call.enqueue(object : Callback<WeatherResponse> {
             @SuppressLint("SetTextI18n")
             override fun onResponse(call: Call<WeatherResponse>, response: Response<WeatherResponse>) {
-                if (response.code() == 200) {
+                if (response.code() == 200) { // TODO вынести 200 в константу
+                    // TODO нужна безопасная проверка на null, поскольку даже ответ 200 не гарантирует, что сервер вернет корректные данные
                     val weatherResponse = response.body()!!
 
                     lat = weatherResponse.coord!!.lat.toString()
                     lon = weatherResponse.coord!!.lon.toString()
+                    // TODO нужна проверка что список не пустой
+                    // TODO нужна проверка на не null
+                    // TODO нужно осмысленное название для TextView, чтобы без превью было понятно, в чем его суть
                     binding.tv1.text = nowStringBuilder(weatherResponse.main!!.temp.toDouble(),weatherResponse.weather[0].description)
                     getToDayWeather()
 
@@ -154,14 +166,21 @@ class MainActivity : AppCompatActivity() {
             }
         })
     }
+
+    // TODO перенести в ViewModel
+    // TODO вместо ручной конкатенации строк используй шаблоны (string templates):
+    //  в этом случае Kotlin под капотом может использовать StringBuilder для улучшения производительности;
+    //  также это улучшит читаемость
     private fun nowStringBuilder(temp : Double, desc :String?):String{
         return  cityName +
                     "\n" +
                     "t: " +
-                    (temp-273.15).toInt().toString() +
+                    (temp-273.15).toInt().toString() + // TODO захардкодить константу, вынеси в Companion object
                     "\n" +
                     desc
     }
+    // TODO перенести в ViewModel
+    // TODO вместо ручной конкатенации строк используй шаблоны (string templates):
     private fun hourStringBuilder(hour : String,temp: Double, desc :String?):String{
         return  hour + ":00" +
                 "\n" +
@@ -170,12 +189,17 @@ class MainActivity : AppCompatActivity() {
                 "\n" +
                 desc
     }
+    // TODO не используется, убрать
     private fun fillList(): List<String> {
         val data = mutableListOf<String>()
         (0..30).forEach { i -> data.add("$i element") }
         return data
     }
+
+    // TODO вынести логику обработки из Activity в ViewModel (гугли MVVM), ViewModel саму создавать через ViewModelProvider.Factory
     private fun getToDayWeather() {
+        // TODO вынести создание клиента в отдельный класс [2]. Не нужно пересоздавать клиент каждый раз,
+        //  когда делаешь запрос, тк создание клиента может быть ресурсоемкой операцией и ухудшит скорость запросов.
         val retrofit = Retrofit.Builder()
             .baseUrl(BaseUrl)
             .addConverterFactory(GsonConverterFactory.create())
@@ -192,13 +216,20 @@ class MainActivity : AppCompatActivity() {
         call.enqueue(object : Callback<OneCallResponse> {
             @SuppressLint("SetTextI18n")
             override fun onResponse(call: Call<OneCallResponse>, response: Response<OneCallResponse>) {
-                if (response.code() == 200) {
+                if (response.code() == 200) { // TODO вынести 200 в константу
+                    // TODO response.body() может быть null, сделай безопасную проверку
                     val weatherResponse = response.body()!!
                     val dataDay = mutableListOf<String>()
                     val dataWeek = mutableListOf<String>()
+                    // 1) TODO нужна проверка на длину массива
+                    // 2) TODO непонятно откуда взялись (0..24) и (0..8)
+                    // 3) TODO не углублялся в логику (т.к. она нечитаема и в полвторого ночи у меня состояние овоща),
+                    //     вроде как создание MutableList + forEach можно заменить на map
+                    // 4) TODO вместо ручной конкатенации строк используй шаблоны (string templates)
                     (0..24).forEach { i -> dataDay.add((dateHour + i).toString() +":00" + "\n" + weatherResponse.hourly[i].temp.toString() + "\n" + weatherResponse.hourly[i].weather[0].description) }
                     (0..8).forEach { i -> dataWeek.add("$i element") }
 
+                    TODO ("Не закоммитил файл")
                     binding.recyclerViewDay.adapter = CustomRecyclerAdapter(dataDay)
                     binding.recyclerViewWeek.adapter = CustomRecyclerAdapter(dataWeek)
                 }
@@ -219,13 +250,18 @@ class MainActivity : AppCompatActivity() {
 
 
     companion object {
-        var cityName = "Moscow"
-        var BaseUrl = "http://api.openweathermap.org/"
-        var AppId = "0656d14d3641e754d706c16afcf3b9f3"
-        var lat : String = "35"
-        var lon : String = "139"
-        const val units= "metric"
-        const val exclude = "current,minutely,alerts"
+        // TODO все поля здесь должны быть по возможности приватными
+        var cityName = "Moscow" /* TODO Не использовать статические переменные для этой цели.
+                                     Гипотетически тебе может понадобиться несколько инстансов твоих экранов,
+                                     и тебе не нужно хранить эту информацию постоянно, она относится только к этому конкретному инстансу.
+                                     Нужно перенести твое состояние экрана во ViewModel. Она переживает смену конфигурации (переворот экрана).
+        */
+        var BaseUrl = "http://api.openweathermap.org/" // TODO перенести в класс создающий клиент ретрофита, сделать приватной константой,
+        var AppId = "0656d14d3641e754d706c16afcf3b9f3" // TODO насколько я понимаю, это поле можно добавлять через Interceptor, но в этом я не уверен, пока можешь оставить так
+        var lat : String = "35" // TODO аналогично cityName
+        var lon : String = "139" // TODO аналогично cityName
+        const val units= "metric" // TODO константы пишутся капсом
+        const val exclude = "current,minutely,alerts" // TODO поправить название поля, по полю непонятно в чем его суть
 
     }
 }

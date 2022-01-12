@@ -2,6 +2,7 @@ package ru.andreyuniquename.theweatherapp.retrofit
 
 import com.google.gson.annotations.SerializedName
 
+// TODO вынести все классы в отдельные файлы
 class WeatherResponse {
 
     @SerializedName("coord")

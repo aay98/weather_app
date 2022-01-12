@@ -6,6 +6,6 @@ class OneCallResponse (
     var lon : Double,
     var timezone : String,
     var timezone_offset : Int,
-    var hourly : List<Hourly>,
-    var daily : List<Daily>
+    var hourly : List<Hourly>, // TODO не закоммитил файл
+    var daily : List<Daily> // TODO не закоммитил файл
 )
