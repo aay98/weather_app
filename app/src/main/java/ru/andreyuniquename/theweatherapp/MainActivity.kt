@@ -260,7 +260,7 @@ class MainActivity : AppCompatActivity() {
         var AppId = "0656d14d3641e754d706c16afcf3b9f3" // TODO насколько я понимаю, это поле можно добавлять через Interceptor, но в этом я не уверен, пока можешь оставить так
         var lat : String = "35" // TODO аналогично cityName
         var lon : String = "139" // TODO аналогично cityName
-        const val units= "metric" // TODO константы пишутся капсом
+        const val units= "metric" // TODO константы пишутся капсом. Инфа к изучению: https://kotlinlang.org/docs/coding-conventions.html
         const val exclude = "current,minutely,alerts" // TODO поправить название поля, по полю непонятно в чем его суть
 
     }
