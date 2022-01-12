@@ -16,6 +16,8 @@ class WeatherResponse {
     var wind: Wind? = null
     @SerializedName("rain")
     var rain: Rain? = null
+    @SerializedName("snow")
+    var snow: Snow? = null
     @SerializedName("clouds")
     var clouds: Clouds? = null
     @SerializedName("dt")
@@ -45,6 +47,11 @@ class Clouds {
 }
 
 class Rain {
+    @SerializedName("3h")
+    var h3: Float = 0.toFloat()
+}
+
+class Snow {
     @SerializedName("3h")
     var h3: Float = 0.toFloat()
 }

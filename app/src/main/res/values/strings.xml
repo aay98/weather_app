@@ -7,5 +7,13 @@
     <string name="is_it_rainy_today">Is it rainy today?</string>
     <string name="my_location">My location</string>
     <string name="enter_city">Enter city</string>
-
+    <string name="textview">TextView</string>
+    <string-array name="cityNames">
+        <item>Moscow</item>
+        <item>Dubrovitsy</item>
+        <item>Miami</item>
+        <item>Oldenburg</item>
+        <item>Orenburg</item>
+        <item>Another</item>
+    </string-array>
 </resources>
