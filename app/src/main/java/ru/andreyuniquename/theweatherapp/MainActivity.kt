@@ -2,77 +2,105 @@ package ru.andreyuniquename.theweatherapp
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Application
+import android.content.Context
 import android.content.pm.PackageManager
 import android.icu.util.Calendar
 import android.os.Bundle
 import android.util.Log
-import androidx.appcompat.app.AppCompatActivity
 import android.view.View
+import android.widget.AdapterView
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
-
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import ru.andreyuniquename.theweatherapp.databinding.ActivityMainBinding
+import ru.andreyuniquename.theweatherapp.retrofit.onecall.OneCallResponse
 import ru.andreyuniquename.theweatherapp.retrofit.weather.WeatherResponse
 import ru.andreyuniquename.theweatherapp.retrofit.weather.WeatherService
-import android.widget.AdapterView
-import androidx.recyclerview.widget.LinearLayoutManager
-import ru.andreyuniquename.theweatherapp.databinding.ActivityMainBinding
+import ru.andreyuniquename.theweatherapp.CustomRecyclerAdapter
+
+
 // TODO RecyclerView.Adapter не должен находиться в слое Domain. Domain - это бизнес-логика. RecyclerView - это UI.
-import ru.andreyuniquename.theweatherapp.domain.CustomRecyclerAdapter
-import ru.andreyuniquename.theweatherapp.retrofit.onecall.OneCallResponse
+// TODO необходимо сделать форматирование кода Ctrl + Alt + L
+// TODO проверка на null не нужна
+// TODO нужно занулять binding в конце ЖЦ твоего активити, чтобы избежать утечку памяти
+// TODO вынеси константу Another в Companion object
 
-
-/*
-  .Отображение прогноза погоды за неделю за текущий день
-    - https://api.openweathermap.org/data/2.5/onecall?lat=45&lon=-9.1987&exclude=current,hourly,minutely,alerts&units=metric&appid=0656d14d3641e754d706c16afcf3b9f3
-    -широту и долготу узнавать по getDataByTown
- */
 class MainActivity : AppCompatActivity() {
-    // TODO необходимо сделать форматирование кода Ctrl + Alt + L
-    private lateinit var binding: ActivityMainBinding // TODO нужно занулять binding в конце ЖЦ твоего активити, чтобы избежать утечку памяти
+
+    private var binding: ActivityMainBinding?  = null
     private lateinit var fusedLocationClient: FusedLocationProviderClient
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
-        val view = binding.root
+        val view = binding!!.root
         setContentView(view)
 
-        // TODO проверка на null не нужна
-        binding.citySpinner?.onItemSelectedListener = object : AdapterView.OnItemSelectedListener{
+
+        binding!!.citySpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onNothingSelected(parent: AdapterView<*>?) {
                 getLastKnownLocation()
             }
 
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                when (binding.citySpinner.selectedItem) {
-                    "Another" -> binding.inputLayout.visibility = View.VISIBLE // TODO вынеси константу Another в Companion object
+            override fun onItemSelected(
+                parent: AdapterView<*>?,
+                view: View?,
+                position: Int,
+                id: Long
+            ) {
+                when (binding!!.citySpinner.selectedItem) {
+                    another -> binding!!.inputLayout.visibility =
+                        View.VISIBLE
                     else -> {
-                        cityName = binding.citySpinner.selectedItem.toString()
+                        cityName = binding!!.citySpinner.selectedItem.toString()
                         getDataByTown()
                     }
                 }
             }
         }
-        binding.inputButton.setOnClickListener(){
-            if (binding.inputText.text != null)
-            {
-                cityName = binding.inputText.text.toString()
-                binding.inputLayout.visibility = View.GONE
+        binding!!.inputButton.setOnClickListener() {
+            if (binding!!.inputText.text != null) {
+                cityName = binding!!.inputText.text.toString()
+                binding!!.inputLayout.visibility = View.GONE
                 getDataByTown()
-            }
-            else binding.tv1.text = getString(R.string.error_city)
+            } else binding!!.tv1.text = getString(R.string.error_city)
         }
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-        binding.myLocationImage.setOnClickListener(){getLastKnownLocation()} // TODO если быстро кликать по этой кнопке, будет уходить куча одинаковых запросов. Подумай, что с этим можно сделать
+        val rightNow = Calendar.getInstance()
+        var time : Int = Calendar.MILLISECOND.toInt() - oneMinute
+        binding!!.myLocationImage.setOnClickListener() {
+            var newTime = Calendar.MILLISECOND
+            if (time.toInt() + oneMinute < newTime) {
+                getLastKnownLocation()
+                time = Calendar.MILLISECOND.toInt()
+            }
+            else{
+                Toast.makeText(applicationContext,tomuchclicks,Toast.LENGTH_SHORT).show()
+                Log.d("MyTag","last was in $time, but now only $newTime")
+            }
+
+        }
+        // TODO если быстро кликать по этой кнопке, будет уходить куча одинаковых запросов. Подумай, что с этим можно сделать
+
         // TODO ты уже задал LayoutManager в вёрстке, соответственно в коде его не нужно уже задавать
-        binding.recyclerViewWeek.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
-        binding.recyclerViewDay.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+        binding!!.recyclerViewWeek.layoutManager =
+            LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+        binding!!.recyclerViewDay.layoutManager =
+            LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        binding = null
     }
 
     private fun getLastKnownLocation() {
@@ -94,10 +122,10 @@ class MainActivity : AppCompatActivity() {
             return
         }
         fusedLocationClient.lastLocation
-            .addOnSuccessListener { location->
+            .addOnSuccessListener { location ->
                 // TODO вынести логику обработки из Activity в ViewModel (гугли MVVM), ViewModel саму создавать через ViewModelProvider.Factory
                 if (location != null) {
-                    lat =  location.latitude.toString()
+                    lat = location.latitude.toString()
                     lon = location.longitude.toString()
                     getDataByLat()
 
@@ -106,6 +134,7 @@ class MainActivity : AppCompatActivity() {
             } // TODO нужна обработка ошибок
 
     }
+
     private fun getDataByLat() {
         val retrofit = Retrofit.Builder()
             .baseUrl(BaseUrl)
@@ -114,22 +143,30 @@ class MainActivity : AppCompatActivity() {
         val service = retrofit.create(WeatherService::class.java)
         val call = service.getCurrentWeatherData(lat, lon, AppId)
         call.enqueue(object : Callback<WeatherResponse> {
-            override fun onResponse(call: Call<WeatherResponse>, response: Response<WeatherResponse>) {
+            override fun onResponse(
+                call: Call<WeatherResponse>,
+                response: Response<WeatherResponse>
+            ) {
                 if (response.code() == 200) { // TODO вынести 200 в константу с осмысленным названием
                     // TODO нужна безопасная проверка на null, поскольку даже ответ 200 не гарантирует, что сервер вернет корректные данные
                     val weatherResponse = response.body()!!
                     // TODO нужна проверка на null
                     cityName = weatherResponse.name!!
                     // TODO нужна проверка на null и размер массива
-                    binding.tv1.text = nowStringBuilder(weatherResponse.main!!.temp.toDouble(),weatherResponse.weather[0].description)
+                    binding!!.tv1.text = nowStringBuilder(
+                        weatherResponse.main!!.temp.toDouble(),
+                        weatherResponse.weather[0].description
+                    )
                     getToDayWeather()
-                }
-                else binding.tv1.text = getString(R.string.error_city)
+                } else binding!!.tv1.text = getString(R.string.error_city)
             }
 
-            override fun onFailure(call: Call<WeatherResponse>, t: Throwable) { binding.tv1.text = t.message }
+            override fun onFailure(call: Call<WeatherResponse>, t: Throwable) {
+                binding!!.tv1.text = t.message
+            }
         })
     }
+
     private fun getDataByTown() {
         // TODO вынести создание клиента в отдельный класс
         val retrofit = Retrofit.Builder()
@@ -140,7 +177,10 @@ class MainActivity : AppCompatActivity() {
         val call = service.getTownWeatherData(cityName, AppId)
         call.enqueue(object : Callback<WeatherResponse> {
             @SuppressLint("SetTextI18n")
-            override fun onResponse(call: Call<WeatherResponse>, response: Response<WeatherResponse>) {
+            override fun onResponse(
+                call: Call<WeatherResponse>,
+                response: Response<WeatherResponse>
+            ) {
                 if (response.code() == 200) { // TODO вынести 200 в константу
                     // TODO нужна безопасная проверка на null, поскольку даже ответ 200 не гарантирует, что сервер вернет корректные данные
                     val weatherResponse = response.body()!!
@@ -150,18 +190,20 @@ class MainActivity : AppCompatActivity() {
                     // TODO нужна проверка что список не пустой
                     // TODO нужна проверка на не null
                     // TODO нужно осмысленное название для TextView, чтобы без превью было понятно, в чем его суть
-                    binding.tv1.text = nowStringBuilder(weatherResponse.main!!.temp.toDouble(),weatherResponse.weather[0].description)
+                    binding!!.tv1.text = nowStringBuilder(
+                        weatherResponse.main!!.temp.toDouble(),
+                        weatherResponse.weather[0].description
+                    )
                     getToDayWeather()
 
-                }
-                else {
-                    binding.tv1.text = getString(R.string.error_city)
+                } else {
+                    binding!!.tv1.text = getString(R.string.error_city)
                 }
 
             }
 
             override fun onFailure(call: Call<WeatherResponse>, t: Throwable) {
-                binding.tv1.text = t.message
+                binding!!.tv1.text = t.message
             }
         })
     }
@@ -170,24 +212,27 @@ class MainActivity : AppCompatActivity() {
     // TODO вместо ручной конкатенации строк используй шаблоны (string templates):
     //  в этом случае Kotlin под капотом может использовать StringBuilder для улучшения производительности;
     //  также это улучшит читаемость
-    private fun nowStringBuilder(temp : Double, desc :String?):String{
-        return  cityName +
-                    "\n" +
-                    "t: " +
-                    (temp-273.15).toInt().toString() + // TODO захардкодить константу, вынеси в Companion object
-                    "\n" +
-                    desc
+    private fun nowStringBuilder(temp: Double, desc: String?): String {
+        return cityName +
+                "\n" +
+                "t: " +
+                (temp - 273.15).toInt()
+                    .toString() + // TODO захардкодить константу, вынеси в Companion object
+                "\n" +
+                desc
     }
+
     // TODO перенести в ViewModel
     // TODO вместо ручной конкатенации строк используй шаблоны (string templates):
-    private fun hourStringBuilder(hour : String,temp: Double, desc :String?):String{
-        return  hour + ":00" +
+    private fun hourStringBuilder(hour: String, temp: Double, desc: String?): String {
+        return hour + ":00" +
                 "\n" +
                 "t: " +
                 temp.toInt().toString() +
                 "\n" +
                 desc
     }
+
     // TODO не используется, убрать
     private fun fillList(): List<String> {
         val data = mutableListOf<String>()
@@ -204,17 +249,20 @@ class MainActivity : AppCompatActivity() {
             .addConverterFactory(GsonConverterFactory.create())
             .build()
         val service = retrofit.create(WeatherService::class.java)
-        val call = service.getOneCallData(lat, lon,exclude,units, AppId)
+        val call = service.getOneCallData(lat, lon, exclude, units, AppId)
 
         val dateNow = Calendar.getInstance()
         val dateDay = Calendar.DAY_OF_MONTH
         val dateHour = Calendar.HOUR_OF_DAY
-        Log.d("MyTag","dateHour = $dateHour")
-        Log.d("MyTag","dateDay = $dateDay")
-        Log.d("MyTag","dateNow = $dateNow")
+        Log.d("MyTag", "dateHour = $dateHour")
+        Log.d("MyTag", "dateDay = $dateDay")
+        Log.d("MyTag", "dateNow = $dateNow")
         call.enqueue(object : Callback<OneCallResponse> {
             @SuppressLint("SetTextI18n")
-            override fun onResponse(call: Call<OneCallResponse>, response: Response<OneCallResponse>) {
+            override fun onResponse(
+                call: Call<OneCallResponse>,
+                response: Response<OneCallResponse>
+            ) {
                 if (response.code() == 200) { // TODO вынести 200 в константу
                     // TODO response.body() может быть null, сделай безопасную проверку
                     val weatherResponse = response.body()!!
@@ -225,27 +273,25 @@ class MainActivity : AppCompatActivity() {
                     // 3) TODO не углублялся в логику (т.к. она нечитаема и в полвторого ночи у меня состояние овоща),
                     //     вроде как создание MutableList + forEach можно заменить на map
                     // 4) TODO вместо ручной конкатенации строк используй шаблоны (string templates)
-                    (0..24).forEach { i -> dataDay.add((dateHour + i).toString() +":00" + "\n" + weatherResponse.hourly[i].temp.toString() + "\n" + weatherResponse.hourly[i].weather[0].description) }
+                    (0..24).forEach { i -> dataDay.add((dateHour + i).toString() + ":00" + "\n" + weatherResponse.hourly[i].temp.toString() + "\n" + weatherResponse.hourly[i].weather[0].description) }
                     (0..8).forEach { i -> dataWeek.add("$i element") }
 
-                    TODO ("Не закоммитил файл")
-                    binding.recyclerViewDay.adapter = CustomRecyclerAdapter(dataDay)
-                    binding.recyclerViewWeek.adapter = CustomRecyclerAdapter(dataWeek)
-                }
-                else {
-                    binding.tv1.text = getString(R.string.error_city)
+                    // TODO("Не закоммитил файл")
+                    binding!!.recyclerViewDay.adapter = CustomRecyclerAdapter(dataDay)
+                    binding!!.recyclerViewWeek.adapter = CustomRecyclerAdapter(dataWeek)
+                } else {
+                    binding!!.tv1.text = getString(R.string.error_city)
                 }
 
             }
 
             override fun onFailure(call: Call<OneCallResponse>?, t: Throwable?) {
                 if (t != null) {
-                    binding.tv1.text = t.message
+                    binding!!.tv1.text = t.message
                 }
             }
         })
     }
-
 
 
     companion object {
@@ -255,13 +301,19 @@ class MainActivity : AppCompatActivity() {
                                      и тебе не нужно хранить эту информацию постоянно, она относится только к этому конкретному инстансу.
                                      Нужно перенести твое состояние экрана во ViewModel. Она переживает смену конфигурации (переворот экрана).
         */
-        var BaseUrl = "http://api.openweathermap.org/" // TODO перенести в класс создающий клиент ретрофита, сделать приватной константой,
-        var AppId = "0656d14d3641e754d706c16afcf3b9f3" // TODO насколько я понимаю, это поле можно добавлять через Interceptor, но в этом я не уверен, пока можешь оставить так
-        var lat : String = "35" // TODO аналогично cityName
-        var lon : String = "139" // TODO аналогично cityName
-        const val units= "metric" // TODO константы пишутся капсом. Инфа к изучению: https://kotlinlang.org/docs/coding-conventions.html
-        const val exclude = "current,minutely,alerts" // TODO поправить название поля, по полю непонятно в чем его суть
-
+        var BaseUrl =
+            "http://api.openweathermap.org/" // TODO перенести в класс создающий клиент ретрофита, сделать приватной константой,
+        var AppId =
+            "0656d14d3641e754d706c16afcf3b9f3" // TODO насколько я понимаю, это поле можно добавлять через Interceptor, но в этом я не уверен, пока можешь оставить так
+        var lat: String = "35" // TODO аналогично cityName
+        var lon: String = "139" // TODO аналогично cityName
+        const val units =
+            "metric" // TODO константы пишутся капсом. Инфа к изучению: https://kotlinlang.org/docs/coding-conventions.html
+        const val exclude =
+            "current,minutely,alerts" // TODO поправить название поля, по полю непонятно в чем его суть
+        const val another = "Another"
+        const val oneMinute : Int = 60000
+        const val tomuchclicks : String = "Too much clicks"
     }
 }
 

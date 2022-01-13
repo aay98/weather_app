@@ -1,12 +1,10 @@
-package ru.andreyuniquename.theweatherapp.domain
+package ru.andreyuniquename.theweatherapp
 
-import android.service.autofill.TextValueSanitizer
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import ru.andreyuniquename.theweatherapp.R
 
 class CustomRecyclerAdapter(private val data:List<String>)
     : RecyclerView.Adapter<CustomRecyclerAdapter.MyViewHolder>() {
