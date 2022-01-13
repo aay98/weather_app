@@ -34,6 +34,8 @@ import ru.andreyuniquename.theweatherapp.CustomRecyclerAdapter
 // TODO нужно занулять binding в конце ЖЦ твоего активити, чтобы избежать утечку памяти
 // TODO вынеси константу Another в Companion object
 
+// TODO не используется, убрать
+
 class MainActivity : AppCompatActivity() {
 
     private var binding: ActivityMainBinding?  = null
@@ -72,20 +74,27 @@ class MainActivity : AppCompatActivity() {
                 cityName = binding!!.inputText.text.toString()
                 binding!!.inputLayout.visibility = View.GONE
                 getDataByTown()
-            } else binding!!.tv1.text = getString(R.string.error_city)
+            } else binding!!.mainInfo.text = getString(R.string.error_city)
         }
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-        val rightNow = Calendar.getInstance()
-        var time : Int = Calendar.MILLISECOND.toInt() - oneMinute
+        var rightNow = Calendar.getInstance()
+        var time : Int = rightNow.timeInMillis.toInt() - timeOut
+
         binding!!.myLocationImage.setOnClickListener() {
-            var newTime = Calendar.MILLISECOND
-            if (time.toInt() + oneMinute < newTime) {
+            rightNow = Calendar.getInstance()
+            var newTime = rightNow.timeInMillis.toInt()
+            Log.d("MyTag","time is $time, new time is $newTime")
+            if (time.toInt() + timeOut < newTime) {
                 getLastKnownLocation()
-                time = Calendar.MILLISECOND.toInt()
+                time = newTime
             }
             else{
-                Toast.makeText(applicationContext,tomuchclicks,Toast.LENGTH_SHORT).show()
-                Log.d("MyTag","last was in $time, but now only $newTime")
+                Toast.makeText(applicationContext,toMuchClicks,Toast.LENGTH_SHORT).show()
+                Log.d("MyTag","last was in $time, but now only $newTime it means that was only ${(newTime-time)/1000} sec")
+                binding!!.mainInfo.text = oldData
+                binding!!.recyclerViewDay.adapter = CustomRecyclerAdapter(oldDataDay)
+                binding!!.recyclerViewWeek.adapter = CustomRecyclerAdapter(oldDataWeek)
+
             }
 
         }
@@ -153,16 +162,19 @@ class MainActivity : AppCompatActivity() {
                     // TODO нужна проверка на null
                     cityName = weatherResponse.name!!
                     // TODO нужна проверка на null и размер массива
-                    binding!!.tv1.text = nowStringBuilder(
+                    val infoStr = nowStringBuilder(
                         weatherResponse.main!!.temp.toDouble(),
                         weatherResponse.weather[0].description
                     )
-                    getToDayWeather()
-                } else binding!!.tv1.text = getString(R.string.error_city)
+                    binding!!.mainInfo.text = infoStr
+                    oldData = infoStr
+                    getToDayWeather(true)
+                } else binding!!.mainInfo.text = getString(R.string.error_city)
             }
 
             override fun onFailure(call: Call<WeatherResponse>, t: Throwable) {
-                binding!!.tv1.text = t.message
+                binding!!.mainInfo.text = t.message
+
             }
         })
     }
@@ -190,20 +202,20 @@ class MainActivity : AppCompatActivity() {
                     // TODO нужна проверка что список не пустой
                     // TODO нужна проверка на не null
                     // TODO нужно осмысленное название для TextView, чтобы без превью было понятно, в чем его суть
-                    binding!!.tv1.text = nowStringBuilder(
+                    binding!!.mainInfo.text = nowStringBuilder(
                         weatherResponse.main!!.temp.toDouble(),
                         weatherResponse.weather[0].description
                     )
-                    getToDayWeather()
+                    getToDayWeather(false)
 
                 } else {
-                    binding!!.tv1.text = getString(R.string.error_city)
+                    binding!!.mainInfo.text = getString(R.string.error_city)
                 }
 
             }
 
             override fun onFailure(call: Call<WeatherResponse>, t: Throwable) {
-                binding!!.tv1.text = t.message
+                binding!!.mainInfo.text = t.message
             }
         })
     }
@@ -233,15 +245,10 @@ class MainActivity : AppCompatActivity() {
                 desc
     }
 
-    // TODO не используется, убрать
-    private fun fillList(): List<String> {
-        val data = mutableListOf<String>()
-        (0..30).forEach { i -> data.add("$i element") }
-        return data
-    }
+
 
     // TODO вынести логику обработки из Activity в ViewModel (гугли MVVM), ViewModel саму создавать через ViewModelProvider.Factory
-    private fun getToDayWeather() {
+    private fun getToDayWeather(isItFromLat : Boolean) {
         // TODO вынести создание клиента в отдельный класс [2]. Не нужно пересоздавать клиент каждый раз,
         //  когда делаешь запрос, тк создание клиента может быть ресурсоемкой операцией и ухудшит скорость запросов.
         val retrofit = Retrofit.Builder()
@@ -275,19 +282,23 @@ class MainActivity : AppCompatActivity() {
                     // 4) TODO вместо ручной конкатенации строк используй шаблоны (string templates)
                     (0..24).forEach { i -> dataDay.add((dateHour + i).toString() + ":00" + "\n" + weatherResponse.hourly[i].temp.toString() + "\n" + weatherResponse.hourly[i].weather[0].description) }
                     (0..8).forEach { i -> dataWeek.add("$i element") }
-
+                    if (isItFromLat){
+                        oldDataDay = dataDay
+                        oldDataWeek = dataWeek
+                    }
                     // TODO("Не закоммитил файл")
                     binding!!.recyclerViewDay.adapter = CustomRecyclerAdapter(dataDay)
                     binding!!.recyclerViewWeek.adapter = CustomRecyclerAdapter(dataWeek)
+
                 } else {
-                    binding!!.tv1.text = getString(R.string.error_city)
+                    binding!!.mainInfo.text = getString(R.string.error_city)
                 }
 
             }
 
             override fun onFailure(call: Call<OneCallResponse>?, t: Throwable?) {
                 if (t != null) {
-                    binding!!.tv1.text = t.message
+                    binding!!.mainInfo.text = t.message
                 }
             }
         })
@@ -312,8 +323,11 @@ class MainActivity : AppCompatActivity() {
         const val exclude =
             "current,minutely,alerts" // TODO поправить название поля, по полю непонятно в чем его суть
         const val another = "Another"
-        const val oneMinute : Int = 60000
-        const val tomuchclicks : String = "Too much clicks"
+        const val timeOut : Int = 60000
+        const val toMuchClicks : String = "Too much clicks"
+        var oldData = ""
+        var oldDataDay = mutableListOf<String>()
+        var oldDataWeek = mutableListOf<String>()
     }
 }
 
