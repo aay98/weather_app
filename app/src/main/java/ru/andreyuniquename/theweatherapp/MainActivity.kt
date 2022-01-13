@@ -17,15 +17,14 @@ import retrofit2.Callback
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import ru.andreyuniquename.theweatherapp.retrofit.WeatherResponse
-import ru.andreyuniquename.theweatherapp.retrofit.WeatherService
+import ru.andreyuniquename.theweatherapp.retrofit.weather.WeatherResponse
+import ru.andreyuniquename.theweatherapp.retrofit.weather.WeatherService
 import android.widget.AdapterView
 import androidx.recyclerview.widget.LinearLayoutManager
 import ru.andreyuniquename.theweatherapp.databinding.ActivityMainBinding
 // TODO RecyclerView.Adapter не должен находиться в слое Domain. Domain - это бизнес-логика. RecyclerView - это UI.
 import ru.andreyuniquename.theweatherapp.domain.CustomRecyclerAdapter
 import ru.andreyuniquename.theweatherapp.retrofit.onecall.OneCallResponse
-import java.util.Calendar.getInstance
 
 
 /*
