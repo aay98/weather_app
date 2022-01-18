@@ -1,4 +1,4 @@
-package ru.andreyuniquename.theweatherapp
+package ru.andreyuniquename.theweatherapp.model
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -7,6 +7,9 @@ import android.content.pm.PackageManager
 import android.icu.util.Calendar
 import android.provider.Settings.Global.getString
 import android.util.Log
+import android.view.View
+import android.widget.AdapterView
+import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
@@ -16,20 +19,29 @@ import retrofit2.Callback
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import ru.andreyuniquename.theweatherapp.MainActivity
+import ru.andreyuniquename.theweatherapp.R
 import ru.andreyuniquename.theweatherapp.retrofit.onecall.OneCallResponse
 import ru.andreyuniquename.theweatherapp.retrofit.weather.WeatherResponse
 import ru.andreyuniquename.theweatherapp.retrofit.weather.WeatherService
+import ru.andreyuniquename.theweatherapp.retrofit.RetrofitGetResponse as RetrofitGetResponse
 
+/* TODO Не использовать статические переменные для этой цели.
+                                     Гипотетически тебе может понадобиться несколько инстансов твоих экранов,
+                                     и тебе не нужно хранить эту информацию постоянно, она относится только к этому конкретному инстансу.
+                                     Нужно перенести твое состояние экрана во ViewModel. Она переживает смену конфигурации (переворот экрана).*/
 
-class MyViewModel (application: Application, fusedLocationClient: FusedLocationProviderClient) : AndroidViewModel(application) {
+class MyViewModel (application: Application) : AndroidViewModel(application) {
     var mainInfoLiveData = MutableLiveData<String>()
-    var weekLiveData = MutableLiveData<String>()
-    var dayLiveData = MutableLiveData<String>()
-    var lastLocationLiveData = MutableLiveData<String>()
+    var weekLiveData = MutableLiveData<List<String>>()
+    var dayLiveData = MutableLiveData<List<String>>()
 
-    init {
-
+    fun getOldData(){
+        mainInfoLiveData.value = oldData
+        weekLiveData.value = oldDataWeek
+        dayLiveData.value = oldDataDay
     }
+
     fun getLastKnownLocation(fusedLocationClient: FusedLocationProviderClient) {
         if (ActivityCompat.checkSelfPermission(
                 getApplication(),
@@ -41,57 +53,41 @@ class MyViewModel (application: Application, fusedLocationClient: FusedLocationP
         ) {return}
         fusedLocationClient.lastLocation
             .addOnSuccessListener { location ->
-                // TODO вынести логику обработки из Activity в ViewModel (гугли MVVM), ViewModel саму создавать через ViewModelProvider.Factory
                 if (location != null) {
                     lat = location.latitude.toString()
                     lon = location.longitude.toString()
                     getDataByLat()
-
                 }
-
-            } // TODO нужна обработка ошибок
+                else
+                    Toast.makeText(getApplication(),R.string.errorTryAgain, Toast.LENGTH_SHORT).show()
+            }
 
     }
 
     private fun getDataByLat() {
-        val retrofit = Retrofit.Builder()
-            .baseUrl(BaseUrl)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-        val service = retrofit.create(WeatherService::class.java)
-        val call = service.getCurrentWeatherData(
-            lat,lon,AppId
-        )
-        call.enqueue(object : Callback<WeatherResponse> {
-            override fun onResponse(
-                call: Call<WeatherResponse>,
-                response: Response<WeatherResponse>
-            ) {
-                if (response.code() == 200) { // TODO вынести 200 в константу с осмысленным названием
-                    // TODO нужна безопасная проверка на null, поскольку даже ответ 200 не гарантирует, что сервер вернет корректные данные
-                    val weatherResponse = response.body()!!
-                    // TODO нужна проверка на null
-                    cityName = weatherResponse.name!!
-                    // TODO нужна проверка на null и размер массива
-                    val infoStr = nowStringBuilder(
-                        weatherResponse.main!!.temp.toDouble(),
-                        weatherResponse.weather[0].description
-                    )
-                    mainInfoLiveData.value = infoStr
-                    oldData = infoStr
-                    getToDayWeather(true)
-                } else mainInfoLiveData.value = R.string.error_city.toString()
-            }
+        val retro  = RetrofitGetResponse()
+        Log.d("MyTag","lon = $lon, lat = $lat")
+        val response = retro.getResponseInfo(false, lat,lon, cityName)
+        Log.d("MyTag",response.toString())
+        if (response != null)
+        {
+            cityName = response.name!!
+            val infoStr = nowStringBuilder(
+                response.main!!.temp.toDouble(),
+                response.weather[0].description
+                // UPD размер массива не нужен потому что по апи там только нулевой элемент хз почему так https://openweathermap.org/api/one-call-api
+            )
+            mainInfoLiveData.value = infoStr
+            oldData = infoStr
+            getToDayWeather(true)
 
-            override fun onFailure(call: Call<WeatherResponse>, t: Throwable) {
-                mainInfoLiveData = t.message
+        } else mainInfoLiveData.value = R.string.error_city.toString()
 
-            }
-        })
     }
 
-    private fun getDataByTown() {
+    fun getDataByTown(city: String) {
         // TODO вынести создание клиента в отдельный класс
+        cityName = city
         val retrofit = Retrofit.Builder()
             .baseUrl(BaseUrl)
             .addConverterFactory(GsonConverterFactory.create())
@@ -104,15 +100,13 @@ class MyViewModel (application: Application, fusedLocationClient: FusedLocationP
                 call: Call<WeatherResponse>,
                 response: Response<WeatherResponse>
             ) {
-                if (response.code() == 200) { // TODO вынести 200 в константу
+                if (response.code() == SUCCESSFUL_RESPONSE_COD) { // TODO вынести 200 в константу
                     // TODO нужна безопасная проверка на null, поскольку даже ответ 200 не гарантирует, что сервер вернет корректные данные
                     val weatherResponse = response.body()!!
-
                     lat = weatherResponse.coord!!.lat.toString()
                     lon = weatherResponse.coord!!.lon.toString()
                     // TODO нужна проверка что список не пустой
                     // TODO нужна проверка на не null
-                    // TODO нужно осмысленное название для TextView, чтобы без превью было понятно, в чем его суть
                     mainInfoLiveData.value = nowStringBuilder(
                         weatherResponse.main!!.temp.toDouble(),
                         weatherResponse.weather[0].description
@@ -135,7 +129,7 @@ class MyViewModel (application: Application, fusedLocationClient: FusedLocationP
     // TODO вместо ручной конкатенации строк используй шаблоны (string templates):
     //  в этом случае Kotlin под капотом может использовать StringBuilder для улучшения производительности;
     //  также это улучшит читаемость
-    private fun nowStringBuilder(temp: Double, desc: String?): String {
+    fun nowStringBuilder(temp: Double, desc: String?): String {
         return cityName +
                 "\n" +
                 "t: " +
@@ -147,7 +141,7 @@ class MyViewModel (application: Application, fusedLocationClient: FusedLocationP
 
     // TODO перенести в ViewModel
     // TODO вместо ручной конкатенации строк используй шаблоны (string templates):
-    private fun hourStringBuilder(hour: String, temp: Double, desc: String?): String {
+    fun hourStringBuilder(hour: String, temp: Double, desc: String?): String {
         return hour + ":00" +
                 "\n" +
                 "t: " +
@@ -168,7 +162,7 @@ class MyViewModel (application: Application, fusedLocationClient: FusedLocationP
             .build()
         val service = retrofit.create(WeatherService::class.java)
         val call = service.getOneCallData(
-            lat,lon,exclude,units,AppId
+            lat, lon, EXCLUDE, UNITS, AppId
         )
 
         val dateNow = Calendar.getInstance()
@@ -199,8 +193,8 @@ class MyViewModel (application: Application, fusedLocationClient: FusedLocationP
                         oldDataDay = dataDay
                         oldDataWeek = dataWeek
                     }
-                    R.id.recyclerViewDay.adapter = CustomRecyclerAdapter(dataDay)
-                    R.id.recyclerViewWeek.adapter = CustomRecyclerAdapter(dataWeek)
+                    dayLiveData.value = dataDay
+                    weekLiveData.value = dataWeek
 
                 } else {
                     mainInfoLiveData.value = R.string.error_city.toString()
@@ -217,27 +211,20 @@ class MyViewModel (application: Application, fusedLocationClient: FusedLocationP
     }
 
     companion object {
-        // TODO все поля здесь должны быть по возможности приватными
-        var cityName = "Moscow" /* TODO Не использовать статические переменные для этой цели.
-                                     Гипотетически тебе может понадобиться несколько инстансов твоих экранов,
-                                     и тебе не нужно хранить эту информацию постоянно, она относится только к этому конкретному инстансу.
-                                     Нужно перенести твое состояние экрана во ViewModel. Она переживает смену конфигурации (переворот экрана).
-        */
-        var BaseUrl =
+        var cityName = ""
+        private val BaseUrl =
             "http://api.openweathermap.org/" // TODO перенести в класс создающий клиент ретрофита, сделать приватной константой,
-        var AppId =
+        private val AppId =
             "0656d14d3641e754d706c16afcf3b9f3" // TODO насколько я понимаю, это поле можно добавлять через Interceptor, но в этом я не уверен, пока можешь оставить так
-        var lat: String = "35" // TODO аналогично cityName
-        var lon: String = "139" // TODO аналогично cityName
-        const val units =
-            "metric" // TODO константы пишутся капсом. Инфа к изучению: https://kotlinlang.org/docs/coding-conventions.html
-        const val exclude =
-            "current,minutely,alerts" // TODO поправить название поля, по полю непонятно в чем его суть
-        const val another = "Another"
-        const val timeOut : Int = 60000
-        const val toMuchClicks : String = "Too much clicks"
-        var oldData = ""
-        var oldDataDay = mutableListOf<String>()
-        var oldDataWeek = mutableListOf<String>()
+        private var lat: String = "35" // TODO аналогично cityName
+        private var lon: String = "139" // TODO аналогично cityName
+        private const val SUCCESSFUL_RESPONSE_COD = 200
+        private const val UNITS =
+            "metric"
+        private const val EXCLUDE =
+            "current,minutely,alerts" // means !include (see API)
+        private var oldData = ""
+        private var oldDataDay = mutableListOf<String>()
+        private var oldDataWeek = mutableListOf<String>()
     }
 }

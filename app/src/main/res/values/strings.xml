@@ -8,6 +8,12 @@
     <string name="my_location">My location</string>
     <string name="enter_city">Enter city</string>
     <string name="textview">TextView</string>
+    <string name="defCityName">Moscow</string>
+    <string name="toMuchClicks">Too much clicks</string>
+    <string name="noWeekData">No week data</string>
+    <string name="noDayData">No day data</string>
+    <string name="another">Another</string>
+    <string name="errorTryAgain">Error, check all and try again</string>
     <string-array name="cityNames">
         <item>Moscow</item>
         <item>Dubrovitsy</item>
