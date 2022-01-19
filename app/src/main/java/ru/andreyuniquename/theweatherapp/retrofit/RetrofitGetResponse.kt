@@ -2,6 +2,8 @@ package ru.andreyuniquename.theweatherapp.retrofit
 
 import android.annotation.SuppressLint
 import android.app.Application
+import android.content.Context
+import android.content.res.Resources
 import android.icu.util.Calendar
 import android.util.Log
 import android.widget.Toast
@@ -25,16 +27,16 @@ class RetrofitGetResponse (){
         .addConverterFactory(GsonConverterFactory.create())
         .build()
     private val service: WeatherService = retrofit.create(WeatherService::class.java)
+
+    private val error_city ="Error in name of city, try again"
     private lateinit var call : Call<WeatherResponse>
     private val successfulResponseCod = 200
     private val units =
         "metric"
     private val EXCLUDE =
         "current,minutely,alerts"
-    private lateinit var  returnResponse : WeatherResponse
-    private var init : Boolean = false //флаг инициализации
 
-    fun getResponseForRecycler(lat : String, lon : String) : OneCallResponse?{
+    fun getResponseForRecycler(lat : String, lon : String, callback: (oneCall: OneCallResponse?) -> Unit) {
         val call = service.getOneCallData(
             lat,
             lon,
@@ -49,7 +51,6 @@ class RetrofitGetResponse (){
         Log.d("MyTag", "dateHour = $dateHour")
         Log.d("MyTag", "dateDay = $dateDay")
         Log.d("MyTag", "dateNow = $dateNow")
-        var returnResponse : OneCallResponse? =  null
 
         call.enqueue(object : Callback<OneCallResponse> {
             @SuppressLint("SetTextI18n")
@@ -58,28 +59,27 @@ class RetrofitGetResponse (){
                 response: Response<OneCallResponse>
             ) {
                 if (response.code() == successfulResponseCod && response.body() != null) {
-                    returnResponse = response.body()
+                    val returnResponse = response.body()
+                    callback (returnResponse)
                 } else {
-                    Toast.makeText(Application(),R.string.error_city, Toast.LENGTH_SHORT).show()
+                    Toast.makeText(Application(),error_city, Toast.LENGTH_SHORT).show()
+                    callback (null)
                 }
-
             }
-
             override fun onFailure(call: Call<OneCallResponse>?, t: Throwable?) {
                 if (t != null) {
                     Toast.makeText(Application(),t.message, Toast.LENGTH_SHORT).show()
                 }
+                callback (null)
             }
         })
-        return returnResponse
     }
-    fun getResponseInfo(isItTown : Boolean, lat : String, lon : String, city:String) : WeatherResponse?
-    {
-        if (isItTown){
-            call = service.getTownWeatherData(city, AppId)
-        }
-        else{
-            call = service.getCurrentWeatherData(
+
+    fun getResponseInfo(isItTown : Boolean, lat : String, lon : String, city:String, callback: (weather : WeatherResponse?) -> Unit) {
+        call = if (isItTown){
+            service.getTownWeatherData(city, AppId)
+        } else{
+            service.getCurrentWeatherData(
                 lat, lon, AppId
             )
         }
@@ -92,24 +92,23 @@ class RetrofitGetResponse (){
                     response: Response<WeatherResponse>
                 ) {
                     if (response.code() == successfulResponseCod && response.body() != null) {
-                        returnResponse = response.body()
-                        init = true
-
+                        val returnResponse = response.body()
+                        callback (returnResponse)
                     } else {
-                        init = false
-                        Toast.makeText(Application(),R.string.error_city.toString(), Toast.LENGTH_SHORT).show()
+                        Toast.makeText(Application(),error_city, Toast.LENGTH_SHORT).show()
+                        callback (null)
                     }
 
                 }
 
                 override fun onFailure(call: Call<WeatherResponse>, t: Throwable) {
                     if (t != null) {
+                        //тут видимо тоже умираем это и есть причина незаконности
                         Toast.makeText(Application(),t.message.toString(), Toast.LENGTH_SHORT).show()
                     }
+                    callback(null)
                 }
             })
-        Log.d("MyTag", "resp is ${returnResponse.toString()}")
-        if (init) return returnResponse
-        else return null
+
     }
 }

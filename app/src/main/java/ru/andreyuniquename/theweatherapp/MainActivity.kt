@@ -1,5 +1,6 @@
 package ru.andreyuniquename.theweatherapp
 
+import android.app.Application
 import android.icu.util.Calendar
 import android.os.Bundle
 import android.util.Log
@@ -17,9 +18,12 @@ import ru.andreyuniquename.theweatherapp.model.MyViewModel
 
 class MainActivity : AppCompatActivity() {
 
-    private var binding: ActivityMainBinding?  = null
+    private var binding: ActivityMainBinding? = null
     private lateinit var fusedLocationClient: FusedLocationProviderClient
-    lateinit var viewModel : MyViewModel
+    lateinit var viewModel: MyViewModel
+
+
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -27,10 +31,18 @@ class MainActivity : AppCompatActivity() {
         val view = binding!!.root
         setContentView(view)
 
+
         viewModel = ViewModelProvider(this, MainFactory(application))
             .get(MyViewModel::class.java)
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+
+        var cityName = resources.getText(R.string.defCityName).toString()
+        val TIME_OUT: Int = 60000
+        val TO_MUCH_CLICKS: String = resources.getText(R.string.toMuchClicks).toString()
+        val ERROR_IN_WEEK_DATA: String = resources.getText(R.string.noWeekData).toString()
+        val ERROR_IN_DAY_DATA: String = resources.getText(R.string.noDayData).toString()
+        val error_city = resources.getText(R.string.error_city).toString()
 
         viewModel.mainInfoLiveData.observe(this, Observer {
             binding!!.mainInfo.text = viewModel.mainInfoLiveData.value
@@ -38,12 +50,14 @@ class MainActivity : AppCompatActivity() {
         viewModel.weekLiveData.observe(this, Observer {
             if (viewModel.weekLiveData.value == null)
                 Toast.makeText(applicationContext, ERROR_IN_WEEK_DATA, Toast.LENGTH_SHORT).show()
-            else binding!!.recyclerViewWeek.adapter = CustomRecyclerAdapter(viewModel.weekLiveData.value!!)
+            else binding!!.recyclerViewWeek.adapter =
+                CustomRecyclerAdapter(viewModel.weekLiveData.value!!)
         })
         viewModel.dayLiveData.observe(this, Observer {
             if (viewModel.dayLiveData.value == null)
                 Toast.makeText(applicationContext, ERROR_IN_DAY_DATA, Toast.LENGTH_SHORT).show()
-            else binding!!.recyclerViewDay.adapter = CustomRecyclerAdapter(viewModel.dayLiveData.value!!)
+            else binding!!.recyclerViewDay.adapter =
+                CustomRecyclerAdapter(viewModel.dayLiveData.value!!)
         })
 
 
@@ -59,63 +73,51 @@ class MainActivity : AppCompatActivity() {
                 id: Long
             ) {
                 when (binding!!.citySpinner.selectedItem) {
-                    "Another" -> binding!!.inputLayout.visibility = View.VISIBLE //Через константы не работает
+                    "Another" -> binding!!.inputLayout.visibility =
+                        View.VISIBLE //Через константы не работает
                     else -> {
+                        binding!!.inputLayout.visibility = View.GONE
                         cityName = binding!!.citySpinner.selectedItem.toString()
                         viewModel.getDataByTown(cityName)
                     }
                 }
             }
         }
-        binding!!.inputButton.setOnClickListener(){
+        binding!!.inputButton.setOnClickListener() {
             if (binding!!.inputText.text != null) {
                 MyViewModel.cityName = binding!!.inputText.text.toString()
                 binding!!.inputLayout.visibility = View.GONE
                 cityName = binding!!.inputText.text.toString()
                 viewModel.getDataByTown(cityName)
-            } else binding!!.mainInfo.text = R.string.error_city.toString()
+            } else { //тут мы умираем
+                Toast.makeText(Application(), error_city, Toast.LENGTH_SHORT)
+                    .show()
+            }
         }
 
         var rightNow = Calendar.getInstance()
-        var time : Int = rightNow.timeInMillis.toInt() - TIME_OUT
-
+        var time: Int = rightNow.timeInMillis.toInt() - TIME_OUT
         binding!!.myLocationImage.setOnClickListener() {
             rightNow = Calendar.getInstance()
             var newTime = rightNow.timeInMillis.toInt()
-            Log.d("MyTag","time is $time, new time is $newTime")
+            Log.d("MyTag", "time is $time, new time is $newTime")
             if (time.toInt() + TIME_OUT < newTime) {
                 viewModel.getLastKnownLocation(fusedLocationClient)
                 time = newTime
-            }
-            else{
-                Toast.makeText(applicationContext,TO_MUCH_CLICKS,Toast.LENGTH_SHORT).show()
-                Log.d("MyTag","last was in $time, but now only $newTime it means that was only ${(newTime-time)/1000} sec")
+            } else {
+                Toast.makeText(applicationContext, TO_MUCH_CLICKS, Toast.LENGTH_SHORT).show()
+                Log.d(
+                    "MyTag",
+                    "last was in $time, but now only $newTime it means that was only ${(newTime - time) / 1000} sec"
+                )
                 viewModel.getOldData()
-
-
             }
-
         }
+
     }
 
     override fun onDestroy() {
         super.onDestroy()
         binding = null
     }
-
-    companion object {
-        private var cityName = R.string.defCityName.toString()
-        //private const val ANOTHER = R.string.another.toString()
-        private const val TIME_OUT : Int = 60000
-        private const val TO_MUCH_CLICKS : String = R.string.toMuchClicks.toString()
-        private const val ERROR_IN_WEEK_DATA : String = R.string.noWeekData.toString()
-        private const val ERROR_IN_DAY_DATA : String = R.string.noDayData.toString()
-    }
-
 }
-
-
-
-
-
-
