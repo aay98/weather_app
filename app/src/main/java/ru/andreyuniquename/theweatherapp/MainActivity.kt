@@ -1,6 +1,5 @@
 package ru.andreyuniquename.theweatherapp
 
-import android.app.Application
 import android.icu.util.Calendar
 import android.os.Bundle
 import android.util.Log
@@ -43,6 +42,7 @@ class MainActivity : AppCompatActivity() {
         val ERROR_IN_WEEK_DATA: String = resources.getText(R.string.noWeekData).toString()
         val ERROR_IN_DAY_DATA: String = resources.getText(R.string.noDayData).toString()
         val error_city = resources.getText(R.string.error_city).toString()
+        val another = resources.getText(R.string.another).toString()
 
         viewModel.mainInfoLiveData.observe(this, Observer {
             binding!!.mainInfo.text = viewModel.mainInfoLiveData.value
@@ -63,7 +63,9 @@ class MainActivity : AppCompatActivity() {
 
         binding!!.citySpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onNothingSelected(parent: AdapterView<*>?) {
-                viewModel.getLastKnownLocation(fusedLocationClient)
+                viewModel.getLastKnownLocation(applicationContext, fusedLocationClient)
+
+
             }
 
             override fun onItemSelected(
@@ -73,12 +75,13 @@ class MainActivity : AppCompatActivity() {
                 id: Long
             ) {
                 when (binding!!.citySpinner.selectedItem) {
-                    "Another" -> binding!!.inputLayout.visibility =
+                    another -> binding!!.inputLayout.visibility =
                         View.VISIBLE //Через константы не работает
                     else -> {
                         binding!!.inputLayout.visibility = View.GONE
                         cityName = binding!!.citySpinner.selectedItem.toString()
-                        viewModel.getDataByTown(cityName)
+                        viewModel.getDataByTown(applicationContext, cityName)
+
                     }
                 }
             }
@@ -88,9 +91,9 @@ class MainActivity : AppCompatActivity() {
                 MyViewModel.cityName = binding!!.inputText.text.toString()
                 binding!!.inputLayout.visibility = View.GONE
                 cityName = binding!!.inputText.text.toString()
-                viewModel.getDataByTown(cityName)
+                viewModel.getDataByTown(applicationContext, cityName)
             } else { //тут мы умираем
-                Toast.makeText(Application(), error_city, Toast.LENGTH_SHORT)
+                Toast.makeText(applicationContext, error_city, Toast.LENGTH_SHORT)
                     .show()
             }
         }
@@ -102,7 +105,7 @@ class MainActivity : AppCompatActivity() {
             var newTime = rightNow.timeInMillis.toInt()
             Log.d("MyTag", "time is $time, new time is $newTime")
             if (time.toInt() + TIME_OUT < newTime) {
-                viewModel.getLastKnownLocation(fusedLocationClient)
+                viewModel.getLastKnownLocation(applicationContext, fusedLocationClient)
                 time = newTime
             } else {
                 Toast.makeText(applicationContext, TO_MUCH_CLICKS, Toast.LENGTH_SHORT).show()

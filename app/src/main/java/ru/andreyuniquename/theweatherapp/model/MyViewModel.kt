@@ -2,8 +2,8 @@ package ru.andreyuniquename.theweatherapp.model
 
 import android.Manifest
 import android.app.Application
+import android.content.Context
 import android.content.pm.PackageManager
-import android.content.res.Resources
 import android.icu.util.Calendar
 import android.util.Log
 import android.widget.Toast
@@ -11,7 +11,6 @@ import androidx.core.app.ActivityCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
 import com.google.android.gms.location.FusedLocationProviderClient
-import ru.andreyuniquename.theweatherapp.R
 import ru.andreyuniquename.theweatherapp.retrofit.RetrofitGetResponse
 
 /* TODO Не использовать статические переменные для этой цели.
@@ -23,27 +22,14 @@ class MyViewModel (application: Application) : AndroidViewModel(application) {
     var mainInfoLiveData = MutableLiveData<String>()
     var weekLiveData = MutableLiveData<List<String>>()
     var dayLiveData = MutableLiveData<List<String>>()
-    val celciumConst : Double = 273.15
-    val months = arrayOf("Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Okt",
-        "Nov",
-        "Dec"
-    )
+
 
     fun getOldData(){
         mainInfoLiveData.value = oldData
         weekLiveData.value = oldDataWeek
         dayLiveData.value = oldDataDay
     }
-    fun getLastKnownLocation(fusedLocationClient: FusedLocationProviderClient) {
+    fun getLastKnownLocation(context: Context,  fusedLocationClient: FusedLocationProviderClient) {
         if (ActivityCompat.checkSelfPermission(
                 getApplication(),
                 Manifest.permission.ACCESS_FINE_LOCATION
@@ -57,14 +43,14 @@ class MyViewModel (application: Application) : AndroidViewModel(application) {
                 if (location != null) {
                     lat = location.latitude.toString()
                     lon = location.longitude.toString()
-                    getDataByLat()
+                    getDataByLat(context)
                 }
                 else
-                    Toast.makeText(getApplication(),error_city, Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context,error_city, Toast.LENGTH_SHORT).show()
             }
     }
-    private fun getDataByLat() {
-        RetrofitGetResponse().getResponseInfo(false, lat,lon, cityName){weather ->
+    private fun getDataByLat(context: Context) {
+        RetrofitGetResponse().getResponseInfo(context,false, lat,lon, cityName){weather ->
             if (weather == null)
                 mainInfoLiveData.value = error_city
             else
@@ -81,12 +67,12 @@ class MyViewModel (application: Application) : AndroidViewModel(application) {
 
                 mainInfoLiveData.value = infoStr.toString()
                 oldData = infoStr.toString()
-                getToDayWeather(true)
+                getToDayWeather(context,true)
             }
         }
     }
-    fun getDataByTown(city: String) {
-        RetrofitGetResponse().getResponseInfo(true, lat,lon, city){weather ->
+    fun getDataByTown(context: Context, city: String) {
+        RetrofitGetResponse().getResponseInfo(context,true, lat,lon, city){weather ->
             if (weather == null)
                 //тут мы тоже умираем причем незаконно
                 mainInfoLiveData.value = error_city
@@ -106,15 +92,15 @@ class MyViewModel (application: Application) : AndroidViewModel(application) {
                     // UPD размер массива не нужен потому что по апи там только нулевой элемент хз почему так https://openweathermap.org/api/one-call-api
 
                 mainInfoLiveData.value = infoStr.toString()
-                getToDayWeather(false)
+                getToDayWeather(context,false)
 
             }
         }
     }
-    private fun getToDayWeather(isItFromLat : Boolean) {
-        RetrofitGetResponse().getResponseForRecycler(lat, lon){weather ->
+    private fun getToDayWeather(context: Context, isItFromLat : Boolean) {
+        RetrofitGetResponse().getResponseForRecycler(context, lat, lon){weather ->
             if (weather == null)
-                mainInfoLiveData.value = Resources.getSystem().getString(R.string.error_city)
+                mainInfoLiveData.value = error_city
             else
             {
                 val dateNow = Calendar.getInstance()
@@ -132,8 +118,16 @@ class MyViewModel (application: Application) : AndroidViewModel(application) {
                 //     вроде как создание MutableList + forEach можно заменить на map
                 // 4) TODO вместо ручной конкатенации строк используй шаблоны (string templates)
 
-                (0..24).forEach { i -> dataDay.add("${if (dateHour + i > 12) if (dateHour +i >24) dateHour-24+i else dateHour-12+i else dateHour +i }:00 \n ${weather.hourly[i].temp.toInt()} \n ${weather.hourly[i].weather[0].description} ")}
-                (0..7).forEach { i -> dataWeek.add("${if (dateDay + i > 31) "${dateDay-31+i} ${months[dateMonth + 1]}" else "${dateDay+i} ${months[dateMonth]}"} \n ${weather.daily[i].temp.day.toInt()}\n ${weather.daily[i].weather[0].description}") }
+                (0..24).forEach { i -> dataDay.add(
+                    "${if (dateHour + i > 12) if (dateHour +i >24) dateHour-24+i else dateHour-12+i else dateHour +i }:00 \n" +
+                        "${weather.hourly[i].temp.toInt()} \n" +
+                        weather.hourly[i].weather[0].description
+                ) }
+                (0..7).forEach { i -> dataWeek.add(
+                    "${if (dateDay + i > 31) "${dateDay-31+i} ${months[dateMonth + 1]}" else "${dateDay+i} ${months[dateMonth]}"} \n" +
+                        "${weather.daily[i].temp.day.toInt()}\n" +
+                        weather.daily[i].weather[0].description
+                ) }
 
                 if (isItFromLat){
                     oldDataDay = dataDay
@@ -146,29 +140,6 @@ class MyViewModel (application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // TODO вместо ручной конкатенации строк используй шаблоны (string templates):
-    //  в этом случае Kotlin под капотом может использовать StringBuilder для улучшения производительности;
-    //  также это улучшит читаемость
-    private fun nowStringBuilder(temp: Double, desc: String?): String {
-        return cityName +
-                "\n" +
-                "t: " +
-                (temp - 273.15).toInt()
-                    .toString() + // TODO захардкодить константу, вынеси в Companion object
-                "\n" +
-                desc
-    }
-
-    // TODO вместо ручной конкатенации строк используй шаблоны (string templates):
-    fun hourStringBuilder(hour: String, temp: Double, desc: String?): String {
-        return hour + ":00" +
-                "\n" +
-                "t: " +
-                temp.toInt().toString() +
-                "\n" +
-                desc
-    }
-
     companion object {
         var cityName = ""
         private var lat: String = "35" // TODO аналогично cityName
@@ -177,5 +148,19 @@ class MyViewModel (application: Application) : AndroidViewModel(application) {
         private var oldData = ""
         private var oldDataDay = mutableListOf<String>()
         private var oldDataWeek = mutableListOf<String>()
+        const val celciumConst : Double = 273.15
+        val months = arrayOf("Jan",
+            "Feb",
+            "Mar",
+            "Apr",
+            "May",
+            "Jun",
+            "Jul",
+            "Aug",
+            "Sep",
+            "Okt",
+            "Nov",
+            "Dec"
+        )
     }
 }

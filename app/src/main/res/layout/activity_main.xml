@@ -17,6 +17,7 @@
         android:textAlignment="viewStart"
         android:textSize="25sp"
         android:textStyle="bold"
+        android:layout_marginStart="8dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintTop_toTopOf="parent"
@@ -66,6 +67,7 @@
         android:layout_marginStart="8dp"
         android:layout_marginTop="8dp"
         android:entries="@array/cityNames"
+        android:minHeight="48dp"
         android:spinnerMode="dropdown"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
@@ -73,7 +75,7 @@
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerViewDay"
         android:layout_width="0dp"
-        android:layout_height="100dp"
+        android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
         android:layout_marginEnd="8dp"
         android:layout_marginBottom="8dp"
@@ -88,7 +90,7 @@
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerViewWeek"
         android:layout_width="0dp"
-        android:layout_height="100dp"
+        android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
         android:layout_marginEnd="8dp"
         android:layout_marginBottom="8dp"
@@ -105,7 +107,8 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
         android:layout_marginBottom="8dp"
-        android:text="At the Week"
+        android:text="@string/at_the_week"
+        android:textStyle="bold"
         app:layout_constraintBottom_toTopOf="@+id/recyclerViewWeek"
         app:layout_constraintStart_toStartOf="parent" />
 
@@ -115,7 +118,8 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
         android:layout_marginBottom="8dp"
-        android:text="To Day"
+        android:text="@string/to_day"
+        android:textStyle="bold"
         app:layout_constraintBottom_toTopOf="@+id/recyclerViewDay"
         app:layout_constraintStart_toStartOf="parent" />
 

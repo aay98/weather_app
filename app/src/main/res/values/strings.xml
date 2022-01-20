@@ -14,6 +14,8 @@
     <string name="noDayData">No day data</string>
     <string name="another">Another</string>
     <string name="errorTryAgain">Error, check all and try again</string>
+    <string name="at_the_week">At the Week</string>
+    <string name="to_day">To Day</string>
     <string-array name="cityNames">
         <item>Moscow</item>
         <item>Dubrovitsy</item>

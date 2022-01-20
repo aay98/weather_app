@@ -1,9 +1,7 @@
 package ru.andreyuniquename.theweatherapp.retrofit
 
 import android.annotation.SuppressLint
-import android.app.Application
 import android.content.Context
-import android.content.res.Resources
 import android.icu.util.Calendar
 import android.util.Log
 import android.widget.Toast
@@ -12,7 +10,6 @@ import retrofit2.Callback
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import ru.andreyuniquename.theweatherapp.R
 import ru.andreyuniquename.theweatherapp.retrofit.onecall.OneCallResponse
 import ru.andreyuniquename.theweatherapp.retrofit.weather.WeatherResponse
 import ru.andreyuniquename.theweatherapp.retrofit.weather.WeatherService
@@ -36,7 +33,7 @@ class RetrofitGetResponse (){
     private val EXCLUDE =
         "current,minutely,alerts"
 
-    fun getResponseForRecycler(lat : String, lon : String, callback: (oneCall: OneCallResponse?) -> Unit) {
+    fun getResponseForRecycler(context: Context, lat : String, lon : String, callback: (oneCall: OneCallResponse?) -> Unit) {
         val call = service.getOneCallData(
             lat,
             lon,
@@ -62,20 +59,20 @@ class RetrofitGetResponse (){
                     val returnResponse = response.body()
                     callback (returnResponse)
                 } else {
-                    Toast.makeText(Application(),error_city, Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context,error_city, Toast.LENGTH_SHORT).show()
                     callback (null)
                 }
             }
             override fun onFailure(call: Call<OneCallResponse>?, t: Throwable?) {
                 if (t != null) {
-                    Toast.makeText(Application(),t.message, Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context,t.message, Toast.LENGTH_SHORT).show()
                 }
                 callback (null)
             }
         })
     }
 
-    fun getResponseInfo(isItTown : Boolean, lat : String, lon : String, city:String, callback: (weather : WeatherResponse?) -> Unit) {
+    fun getResponseInfo(context: Context, isItTown : Boolean, lat : String, lon : String, city:String, callback: (weather : WeatherResponse?) -> Unit) {
         call = if (isItTown){
             service.getTownWeatherData(city, AppId)
         } else{
@@ -95,7 +92,7 @@ class RetrofitGetResponse (){
                         val returnResponse = response.body()
                         callback (returnResponse)
                     } else {
-                        Toast.makeText(Application(),error_city, Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context,error_city, Toast.LENGTH_SHORT).show()
                         callback (null)
                     }
 
@@ -104,7 +101,7 @@ class RetrofitGetResponse (){
                 override fun onFailure(call: Call<WeatherResponse>, t: Throwable) {
                     if (t != null) {
                         //тут видимо тоже умираем это и есть причина незаконности
-                        Toast.makeText(Application(),t.message.toString(), Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context,t.message.toString(), Toast.LENGTH_SHORT).show()
                     }
                     callback(null)
                 }
