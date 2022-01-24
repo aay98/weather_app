@@ -1,10 +1,9 @@
 package ru.andreyuniquename.theweatherapp.retrofit
 
 import android.annotation.SuppressLint
-import android.content.Context
 import android.icu.util.Calendar
 import android.util.Log
-import android.widget.Toast
+import androidx.lifecycle.MutableLiveData
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -14,32 +13,34 @@ import ru.andreyuniquename.theweatherapp.retrofit.onecall.OneCallResponse
 import ru.andreyuniquename.theweatherapp.retrofit.weather.WeatherResponse
 import ru.andreyuniquename.theweatherapp.retrofit.weather.WeatherService
 
-class RetrofitGetResponse (){
-    private val BaseUrl =
+class RetrofitGetResponse() {
+    private val baseUrl =
         "http://api.openweathermap.org/"
-    private val AppId =
+    private val apiId =
         "0656d14d3641e754d706c16afcf3b9f3"
     val retrofit: Retrofit = Retrofit.Builder()
-        .baseUrl(BaseUrl)
+        .baseUrl(baseUrl)
         .addConverterFactory(GsonConverterFactory.create())
         .build()
     private val service: WeatherService = retrofit.create(WeatherService::class.java)
 
-    private val error_city ="Error in name of city, try again"
-    private lateinit var call : Call<WeatherResponse>
+    private val errorCity = "Error in name of city, try again"
+    private lateinit var call: Call<WeatherResponse>
     private val successfulResponseCod = 200
     private val units =
         "metric"
-    private val EXCLUDE =
+    private val exclude =
         "current,minutely,alerts"
+    private val responseError = "Error in response body"
+    private val codError = "Error in response cod"
 
-    fun getResponseForRecycler(context: Context, lat : String, lon : String, callback: (oneCall: OneCallResponse?) -> Unit) {
+    fun getResponseForRecycler(errorLiveData: MutableLiveData<String>, lat: String, lon: String, callback: (oneCall: OneCallResponse?) -> Unit) {
         val call = service.getOneCallData(
             lat,
             lon,
-            EXCLUDE,
+            exclude,
             units,
-            AppId
+            apiId
         )
 
         val dateNow = Calendar.getInstance()
@@ -57,55 +58,58 @@ class RetrofitGetResponse (){
             ) {
                 if (response.code() == successfulResponseCod && response.body() != null) {
                     val returnResponse = response.body()
-                    callback (returnResponse)
+                    callback(returnResponse)
                 } else {
-                    Toast.makeText(context,error_city, Toast.LENGTH_SHORT).show()
-                    callback (null)
+                    if (response.code() == successfulResponseCod)
+                        errorLiveData.value = responseError
+                    else
+                        errorLiveData.value = codError
+                    callback(null)
                 }
             }
+
             override fun onFailure(call: Call<OneCallResponse>?, t: Throwable?) {
                 if (t != null) {
-                    Toast.makeText(context,t.message, Toast.LENGTH_SHORT).show()
+                    errorLiveData.value = t.message.toString()
                 }
-                callback (null)
+                callback(null)
             }
         })
     }
 
-    fun getResponseInfo(context: Context, isItTown : Boolean, lat : String, lon : String, city:String, callback: (weather : WeatherResponse?) -> Unit) {
-        call = if (isItTown){
-            service.getTownWeatherData(city, AppId)
-        } else{
+    fun getResponseInfo(errorLiveData: MutableLiveData<String>, isItTown: Boolean, lat: String, lon: String, city: String, callback: (weather: WeatherResponse?) -> Unit) {
+        call = if (isItTown) {
+            service.getTownWeatherData(city, apiId)
+        } else {
             service.getCurrentWeatherData(
-                lat, lon, AppId
+                lat, lon, apiId
             )
         }
-        Log.d("MyTag", "call is ${call.toString()}")
+        Log.d("MyTag", "getResponse $call")
 
         call.enqueue(object : Callback<WeatherResponse> {
-                @SuppressLint("SetTextI18n")
-                override fun onResponse(
-                    call: Call<WeatherResponse>,
-                    response: Response<WeatherResponse>
-                ) {
-                    if (response.code() == successfulResponseCod && response.body() != null) {
-                        val returnResponse = response.body()
-                        callback (returnResponse)
-                    } else {
-                        Toast.makeText(context,error_city, Toast.LENGTH_SHORT).show()
-                        callback (null)
-                    }
-
-                }
-
-                override fun onFailure(call: Call<WeatherResponse>, t: Throwable) {
-                    if (t != null) {
-                        //тут видимо тоже умираем это и есть причина незаконности
-                        Toast.makeText(context,t.message.toString(), Toast.LENGTH_SHORT).show()
-                    }
+            @SuppressLint("SetTextI18n")
+            override fun onResponse(
+                call: Call<WeatherResponse>,
+                response: Response<WeatherResponse>
+            ) {
+                if (response.code() == successfulResponseCod && response.body() != null) {
+                    val returnResponse = response.body()
+                    Log.d("MyTag", "resp cod is ${response.code()}")
+                    callback(returnResponse)
+                } else {
+                    if (response.code() == successfulResponseCod)
+                        errorLiveData.value = responseError
+                    else
+                        errorLiveData.value = codError
                     callback(null)
                 }
-            })
+            }
 
+            override fun onFailure(call: Call<WeatherResponse>, t: Throwable) {
+                errorLiveData.value = t.message.toString()
+                callback(null)
+            }
+        })
     }
 }
