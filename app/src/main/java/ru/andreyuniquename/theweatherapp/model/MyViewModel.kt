@@ -30,7 +30,10 @@ class MyViewModel(application: Application) : AndroidViewModel(application) {
                     getApplication(),
                     Manifest.permission.ACCESS_COARSE_LOCATION
                 ) != PackageManager.PERMISSION_GRANTED
-        ) { errorLiveData.value = errorInPermission }
+        ) {
+            errorLiveData.value = errorInPermission
+            return
+        }
         fusedLocationClient.lastLocation
             .addOnSuccessListener { location ->
                 if (location != null) {
